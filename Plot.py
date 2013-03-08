@@ -3,14 +3,15 @@ import sys
 import random
 import numpy as np
 import serial
-from time import sleep
+import time
 
-# first = white
-# second = bottom
-# third = other
+# plates
+# 1: bottom
+# 2: left
+# 3: right
 
-#PORT = "/dev/ttyACM0"
-#ser = serial.Serial(PORT, 9600)
+PORT = "/dev/ttyACM0"
+ser = serial.Serial(PORT, 9600)
 
 class FakeData:
 
@@ -24,9 +25,9 @@ class FakeData:
 fakes = [FakeData(), FakeData(), FakeData()]
 
 def get_readings():
-    global fakes
-    return [0] + map(lambda x: x.get(), fakes)
-#    return ser.readline().strip().split()
+#    global fakes
+#    return [0] + map(lambda x: x.get(), fakes)
+    return ser.readline().strip().split()
 
 def reading_to_distance(x):
     if (x <= 0):
@@ -40,8 +41,9 @@ class Graph:
         self.verbose = False
         self.distances = []
         # TODO: adjust this based on the time between inputs
-        self.distances_max_len = 10 # 20
+        self.distances_max_len = 30 # 20
         self.prev_rms = 1
+        self.seconds = time.time()
         
     # Finds the root mean square of the distances array.
     def rms(self):
@@ -54,7 +56,7 @@ class Graph:
     # reading: a string representing a raw input value.
     def add_reading(self, reading):
         reading = int(reading)
-#        ser.flush()
+        ser.flush()
         distance = reading_to_distance(reading)
         self.add_distance(distance)
         if (self.verbose):
@@ -69,9 +71,16 @@ class Graph:
             self.distances.pop(0)   
 
     def delta(self):
+        # Note: I'm attempting to use time.clock() to make the return value 
+        # proportional to time, so that fast readings won't cause really 
+        # tiny deltas. -Michael
         rms = self.rms()
-        diff = (rms - self.prev_rms) / self.prev_rms
+        seconds = time.time()
+        ds = seconds - self.seconds
+        
+        diff = (rms - self.prev_rms) / self.prev_rms / ds
         self.prev_rms = rms
+        self.seconds = seconds
         return diff
         
 
@@ -80,16 +89,23 @@ graph = Graph()
 graph2 = Graph()
 graph3 = Graph()
 
+def direction(x):
+    diff = 0.02
+    if x < -diff:
+        return '-'
+    if x > diff:
+        return '+'
+    return '='
+
 while True:
     try:
-        time, reading, reading2, reading3 = get_readings()
+        cur_time, reading, reading2, reading3 = get_readings()
         graph.add_reading(reading)
         graph2.add_reading(reading2)
         graph3.add_reading(reading3)
-#        print "(%d, %d, %d)" % (graph.delta(), graph2.delta(), graph3.delta()
-        print "(%f, %f, %f)" % (graph.delta(), graph2.delta(), graph3.delta())
-        sleep(1)
-        #graph.plot()
+        print "(%d, %d, %d)" % (graph.rms(), graph2.rms(), graph3.rms())
+#        print "(%f, %f, %f)" % (graph.delta(), graph2.delta(), graph3.delta())
+#        print (direction(graph.delta()) + direction(graph2.delta()) + direction(graph3.delta()))
     except ValueError as e:
         print "Error: ", str(e)
 #    except BaseException as e:
