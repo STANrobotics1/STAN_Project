@@ -1,2 +1,0 @@
- * Process multiple input values.
- * Refactor to make it easy to maintain a list of distances for multiple inputs.
