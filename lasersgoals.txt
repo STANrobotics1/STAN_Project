@@ -1,0 +1,6 @@
+lasers goals:
+reset switch if stuff goes south
+LCD display (show you how many people are in the room)
+hook it up to the lights
+
+
